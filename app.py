@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'dolefoundation'  # 🔐 Change this to something strong in production
+app.secret_key = 'dolefoundation'  
 UPLOAD_FOLDER = "uploads"
 IMAGE_FOLDER = "static/images"
 TEMP_IMAGE_FOLDER = "processed_images"
