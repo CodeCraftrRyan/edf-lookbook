@@ -1,21 +1,38 @@
 <!DOCTYPE html>
 <html>
 
-<link href="style.css" rel="stylesheet"> 
-
-
 <head>
-    <title>Upload CSV</title>
+    <title>EDF Lookbook Creater</title> 
+    <link href='static/style/style.css' rel='stylesheet'> 
 </head>
 <body>
     <div class="header"> 
+        <img src='/static/logo/EDFlogo_Square.jpg' alt="EDF Logo">
+        <h1>Create an EDF Lookbook</h1>
+    </div> 
         <div class="container"> 
-            <h1>Upload a CSV to Convert to PDF Lookbook</h1>
-            <p>Styled in the Elizabeth Dole Foundation colors and font!</p>
+            <p>Simply upload a CSV file and click Upload. A pdf will auotmatically be downloaded to your desktop!</p>
+            <p>To create a lookbook your CSV file must have any or all of the following column names:</p>
+            <div class="bulletpoint" id="bulletpoint">
+                <li>headshot <i>Please note, headshot images are taken directly from Salesforce and should be formated as first_last1.jpg</i></li>
+                <li>name</li>
+                <li>company</li>
+                <li>title</li>
+                <li>additional</li>
+                <li>description</li> 
+            </div>
+        </div>
+        <div class="buttons" id="buttons">
             <form method="POST" enctype="multipart/form-data">
             <input type="file" name="file" required>
-             <button type="submit">Upload</button>
+            <button type="submit" name="submit">Generate Lookbook</button>
             </form>
+        </div>
+    </div> 
+    <div class="footer">
+        <div class="container"> 
+            <p>&copy; Elizabeth Dole Foundation</p> 
+            <p>Created by Ryan Haviland, 2025</p> 
         </div>
     </div> 
 </body>

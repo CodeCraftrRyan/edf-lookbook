@@ -1,5 +1,70 @@
-img[src*='EDFlogo_Square'] {
-    height: 50px;
-  }
+* {
+    margin: 10px; 
+    font-family: 'Times New Roman'
+}
   
-  
+.header {
+    font-size: 16px;
+    color: #1D446C;
+    font-size: 2em; 
+    padding-top: 50px; 
+    padding-bottom: 25px; 
+    width: 100%; 
+    display: flex; 
+    align-items: center; 
+    gap: 20px; 
+    padding: 20px; 
+}
+
+.header img {
+    object-fit: contain; 
+    height: 100px; 
+}
+
+.container {
+    width: 100%;
+    font-size: 16px;
+}
+
+.bulletpoint {
+    font-size: 16px; 
+    padding: 20px; 
+}
+
+button {
+    background-color:#1D446C; 
+    color: #fff; 
+    transition: all 0.25s; 
+    background-position-x: 0%;
+    border: 0; 
+    border-radius: 8px; 
+    padding: 1rem 1.25rem; 
+
+} 
+
+button:hover {
+    background-position-x: 100%;
+    transform: scale(1.1);
+}
+
+input::file-selector-button {
+    background-color: #1D446C;
+    font-family: 'times new roman';
+    color: #fff; 
+    transition: all 0.25s; 
+    background-position-x: 0%;
+    border: 0; 
+    border-radius: 8px; 
+    padding: 1rem 1.25rem; 
+    margin-left: 20px;
+    
+}
+
+input::file-selector-button:hover { 
+    background-position-x: 100%;
+    transform: scale(1.1);
+}
+
+.footer {
+    padding: 20px; 
+}
