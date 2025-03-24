@@ -1,0 +1,33 @@
+* {
+    font-family: 'Aviner Next'; 
+
+}
+
+.header {
+    font-size: 16px;
+    color: #1D446C;
+    font-size: 2em; 
+    padding-top: 50px; 
+    padding-bottom: 25px; 
+    width: 100%; 
+    display: flex; 
+    align-items: center; 
+    gap: 20px; 
+    padding: 20px; 
+    text-align:center; 
+}
+
+.header img {
+    object-fit: contain; 
+    height: 100px; 
+}
+
+.star {
+    background-color: #1D446C;
+    box-sizing: border-box;
+    padding: 40px;
+    text-align: center;
+    width: 100%;
+    color: white; 
+    font-size: 20px;
+}
