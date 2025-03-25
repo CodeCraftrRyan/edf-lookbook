@@ -1,43 +1,60 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>EDF Lookbook Generator </title> 
-    <link href='static/style/style.css' rel='stylesheet'> 
-    <link rel="icon" type="image/x-icon" href="/static/logo/EDFlogo_Square.jpg">
+  <title>EDF Lookbook Generator</title>
+  <link href="/static/style/style.css" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="/static/logo/EDFlogo_Square.jpg">
 </head>
 <body>
-    <div class="header"> 
-        <img src='/static/logo/EDFlogo_Square.jpg' alt="EDF Logo">
-        <h1>Create an EDF Lookbook</h1>
-    </div> 
-        <div class="container"> 
-            <p>Simply upload a CSV file and click “Generate Lookbook.” A PDF will automatically be downloaded to your desktop</p>
-            <p>To ensure the tool works correctly, your CSV file should include any or all of the following column headers in lowercase:</p>
-            <div class="bulletpoint" id="bulletpoint">
-                <li>"headshot" <i><b>Note:</b>Please note, headshot images are taken directly from Salesforce and should be formated as first_last1.jpg</i></li>
-                <li>"name"</li>
-                <li>"company"</li>
-                <li>"title"</li>
-                <li>"additional"</li>
-                <li>"description"</li> 
-            </div>
-    </div>
-        <div class="action">
-            <p><b>Step 1:</b> Upload CSV file</p> 
-            <div class="buttons" id="buttons">
-                <form method="POST" enctype="multipart/form-data">
-                <input type="file" name="file" required>
-                <p><b>Step 2:</b>Click "Generate"</p> 
-                <button type="submit" name="submit">Generate Lookbook</button>
-            </form>
-        </div>
-        </div>
-    </div> 
-    <div class="footer">
-            <p>&copy; Elizabeth Dole Foundation</p> 
-            <p>Created by Ryan Haviland, 2025</p> 
-        </div>
-    </div> 
+
+  <!-- Header -->
+  <div class="header"> 
+    <img src="/static/logo/EDFlogo_Square.jpg" alt="EDF Logo">
+    <h1>Create an EDF Lookbook</h1>
+    <form method="POST" action="{{url_for('logout')}}">
+      <button type="submit" id="logout" class="logout-button">Logout</a>
+      </button>
+      
+    </form> 
+  </div> 
+
+  <!-- Instructions -->
+  <div class="container"> 
+    <p>Simply upload a CSV file and click “Generate Lookbook.” A PDF will automatically be downloaded to your desktop.</p>
+    <p>To ensure the tool works correctly, your CSV file should include any or all of the following column headers in lowercase:</p>
+    
+    <ul class="bulletpoint">
+      <li>"headshot" <i>Note: Headshot images are taken directly from Salesforce and should be formatted as <code>first_last1.jpg</code></i></li>
+      <li>"name"</li>
+      <li>"company"</li>
+      <li>"title"</li>
+      <li>"additional"</li>
+      <li>"description"</li> 
+    </ul>
+  </div>
+
+  <!-- Form -->
+<div class="action">
+    <form method="POST" enctype="multipart/form-data">
+      
+      <div class="form-row">
+        <label for="file"><b>Step 1:</b> Upload CSV file</label> 
+        <input type="file" id="file" name="file" required>
+      </div> 
+      
+      <div class="form-row"> 
+        <label><b>Step 2:</b> Click "Generate Lookbook"</label> 
+        <button type="submit" name="submit">Generate Lookbook</button>
+      </div> 
+
+    </form>
+</div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>&copy; Elizabeth Dole Foundation</p> 
+    <p>Created by Ryan Haviland, 2025</p> 
+  </div>
+
 </body>
 </html>
