@@ -1,4 +1,9 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash 
+from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash 
+from user_models import db, User 
+import os 
 import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph, Spacer
 from reportlab.lib.pagesizes import letter
@@ -6,35 +11,89 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from PIL import Image as PILImage
-import os
 from datetime import datetime
 
+
 app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 app.secret_key = 'dolefoundation'  
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login' 
+
+# Folders 
 UPLOAD_FOLDER = "uploads"
 IMAGE_FOLDER = "static/images"
 TEMP_IMAGE_FOLDER = "processed_images"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 
-if not os.path.exists(TEMP_IMAGE_FOLDER):
-    os.makedirs(TEMP_IMAGE_FOLDER)
+#Create folders if needed
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(TEMP_IMAGE_FOLDER, exist_ok=True)
 
+#Flask-Login user loader
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+#Login route 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        username = request.form.get('username')
         password = request.form.get('password')
-        if password == 'dolefoundation':  # 🔐 Replace with your internal password
-            session['logged_in'] = True
+
+        # ✅ Fetch from the database
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.check_password(password):
+            login_user(user)
             return redirect(url_for('upload_csv'))
         else:
-            flash('Incorrect password. Try again.')
+            flash("Invalid username or password.")
+
     return render_template('login.html')
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        
+        # ✅ Restrict to EDF domain
+        if not email.endswith("@elizabethdolefoundation.org"):
+            flash("Only EDF staff emails are allowed.")
+            return redirect(url_for("register"))
+
+        # Check if username already exists in the database
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash("Username already taken. Please choose another.")
+            return redirect(url_for("register"))
+        
+        if User.query.filter_by(email=email).first():
+            flash("Email already in use.")
+            return redirect(url_for("register"))
+
+        # Create and store new user
+        new_user = User(username=username, email=email)
+        new_user.set_password(password)  # securely hash password
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash("Account created! Please log in.")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+#Main upload + PDF generation route
 @app.route("/", methods=["GET", "POST"])
+@login_required
 def upload_csv():
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
     if request.method == "POST":
         file = request.files["file"]
         if file and file.filename.endswith(".csv"):
@@ -126,8 +185,18 @@ def upload_csv():
 
             return send_file(output_path, as_attachment=True)
 
+    #GET request
     return render_template("upload.html")
+
+@app.route("/logout", methods=["GET"])
+@login_required
+def logout():
+    logout_user()
+    flash("You’ve been logged out.")
+    return redirect(url_for("login"))
+
+#Run the app
 if __name__ == '__main__':
     app.run(debug=True)
-    
-    
+
+
