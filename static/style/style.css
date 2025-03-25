@@ -1,6 +1,6 @@
 * {
     font-family: 'Aviner Next'; 
-    margin: 12px; 
+    margin: 10px; 
 }
   
 .header {
@@ -17,6 +17,12 @@
     text-align:center; 
 }
 
+#logout {
+  color: white;
+  background-color: #A03431; 
+
+}
+
 .header img {
     object-fit: contain; 
     height: 100px; 
@@ -25,49 +31,77 @@
 .container {
     width: 100%;
     font-size: 16px;
+    padding: 10px; 
 }
 
 .bulletpoint {
     font-size: 16px; 
-    padding: 20px; 
+    padding: 10px; 
 }
 
-button {
-    background-color:#1D446C; 
-    color: #fff; 
-    transition: all 0.25s; 
-    background-position-x: 0%;
-    border: 0; 
-    border-radius: 8px; 
-    padding: 1rem 1.25rem; 
+.action {
+  background-color: white;
+  border-style: solid; 
+  padding: 10px;
+  border-radius: 12px;
+  border-color: #163a56;
+  width: 100%;
+  max-width: 700px;
+  margin: auto; /* centers horizontally */
+}
+
+/* Main container for buttons */
+#buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 40px;
+  }
+
+  
+/* Step labels */
+.form-row label {
+    width: 186px;
+    text-align: right;
     font-size: 16px;
-
-} 
-
-button:hover {
-    background-position-x: 100%;
-    transform: scale(1.1);
-}
-
-input::file-selector-button {
+    color: #1D446C;
+    }
+  
+  /* File input spacing fix */
+  input[type="file"] {
+    font-size: 16px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: none;
+    width: auto;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  
+  /* Submit button and file button shared styling */
+  button,
+  input::file-selector-button {
     background-color: #1D446C;
-    font-family: 'times new roman';
-    color: #fff; 
-    transition: all 0.25s; 
-    background-position-x: 0%;
-    border: 0; 
-    border-radius: 8px; 
-    padding: 1rem 1.25rem; 
-    margin-left: 20px;
-    font-size: 16px; 
-    
-}
-
-input::file-selector-button:hover { 
-    background-position-x: 100%;
+    color: #fff;
+    font-family: 'Aviner Next';
+    border: none;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.25s ease;
+  }
+  
+  /* Hover effect for both buttons */
+  button:hover,
+  input::file-selector-button:hover {
     transform: scale(1.1);
-}
+    background-color: #163a56;
+  }
 
 .footer {
     padding: 20px; 
 }
+
+
