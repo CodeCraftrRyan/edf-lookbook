@@ -15,6 +15,7 @@ Built with Flask and SQLAlchemy, the app supports secure staff login, user regis
 - 🎨 Clean user interface with custom CSS
 - 📦 GitHub + Render deployment ready
 - 🔒 Uses Flask-Login and SQLAlchemy for security and persistence
+- 🔒 Users can forget password and answer security questions
 
 ---
 

@@ -90,6 +90,33 @@ def register():
 
     return render_template("register.html")
 
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        username = request.form['username']
+
+        # Look up user in database
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        conn.close()
+
+        if user:
+            return f"✅ User found: {username}. Please contact admin to reset your password."
+            # OR you could redirect to a "Reset Password" page if you want to build that too.
+        else:
+            return "⚠️ No user found with that username."
+
+    return '''
+        <h2>Forgot Password</h2>
+        <form method="post">
+            Enter your username: <input type="text" name="username"><br>
+            <input type="submit" value="Find My Account">
+        </form>
+    '''
+
+
 #Main upload + PDF generation route
 @app.route("/", methods=["GET", "POST"])
 @login_required
