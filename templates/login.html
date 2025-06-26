@@ -1,43 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login</title>
-    <link rel="icon" type="image/x-icon" href="/static/logo/EDFlogo_Square.jpg">
-    <link href='static/style/login_style.css' rel='stylesheet'> 
+    <meta charset="UTF-8">
+    <title>Login | EDF Lookbook</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='logo/EDFlogo_Square.jpg') }}">
+    <link href="{{ url_for('static', filename='style/login_style.css') }}" rel="stylesheet"> 
 </head>
 <body>
     <div class="header">
-    <img src='/static/logo/EDFlogo_Square.jpg' alt="EDF Logo">
-    <h2>Welcome to the EDF Lookbook Generator</h2>
+        <img src="{{ url_for('static', filename='logo/EDFlogo_Square.jpg') }}" alt="EDF Logo">
+        <h2>Welcome to the EDF Lookbook Generator</h2>
     </div>
 
     <div class="star">
-        <p>Please login to access the Lookbook Generator. Please note, this site is intended for Elizabeth Dole Foundation staff only.</p> 
+        <p>Please log in to access the Lookbook Generator. This site is for Elizabeth Dole Foundation staff only.</p> 
+        
         <form method="POST">
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
             <button type="submit">Login</button>
         </form>
-        <p><a href="{{ url_for('register') }}" style="color:white">Click here to create an account</a></p>
 
-        <!-- Forgot Password Link -->
-        <form action="/forgot_password" method="get">
-            <button type="submit">Forgot Password?</button>
-        </form>
+        <div class="auth-links">
+            <p><a href="{{ url_for('register') }}">Create an account</a></p>
+            <p><a href="{{ url_for('forgot_password') }}">Forgot Password?</a></p>
+        </div>
     </div> 
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash">
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
 
     <footer class="footer">
         <p>&copy; Elizabeth Dole Foundation, 2025</p> 
     </footer> 
 </body>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <ul class="flash">
-      {% for message in messages %}
-        <li>{{ message }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-{% endwith %}
 </html>

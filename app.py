@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash 
-from user_models import db, User 
+from user_models import db, User  # type: ignore
 import os 
 import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph, Spacer
@@ -12,11 +12,21 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from PIL import Image as PILImage
 from datetime import datetime
+from flask_mail import Mail, Message 
 
+app = Flask(__name__, instance_relative_config=True)
+# Email configuration
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your_email@gmail.com'   
+app.config['MAIL_PASSWORD'] = 'your_email_password'       
+app.config['MAIL_DEFAULT_SENDER'] = 'your_email@gmail.com' 
 
-app = Flask(__name__)
+mail = Mail(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+db_path = os.path.join(app.instance_path, 'users.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 app.secret_key = 'dolefoundation'  
@@ -26,12 +36,12 @@ login_manager.init_app(app)
 login_manager.login_view = 'login' 
 
 # Folders 
-UPLOAD_FOLDER = "uploads"
+app.config['UPLOAD_FOLDER'] = "uploads"
 IMAGE_FOLDER = "static/images"
 TEMP_IMAGE_FOLDER = "processed_images"
 
 #Create folders if needed
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(TEMP_IMAGE_FOLDER, exist_ok=True)
 
 #Flask-Login user loader
@@ -94,27 +104,21 @@ def register():
 def forgot_password():
     if request.method == 'POST':
         username = request.form['username']
-
-        # Look up user in database
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-        user = cursor.fetchone()
-        conn.close()
+        user = User.query.filter_by(username=username).first()
 
         if user:
-            return f"✅ User found: {username}. Please contact admin to reset your password."
-            # OR you could redirect to a "Reset Password" page if you want to build that too.
+            reset_link = f"http://localhost:5001/reset_password/{user.id}"
+            msg = Message("Reset Your Password",
+                          recipients=[user.email])
+            msg.body = f"Hi {user.username},\n\nClick here to reset your password: {reset_link}\n\nIf you didn’t ask for this, you can ignore it."
+            mail.send(msg)
+            flash("✅ Reset email sent!")
         else:
-            return "⚠️ No user found with that username."
+            flash("⚠️ No user found with that username.")
 
-    return '''
-        <h2>Forgot Password</h2>
-        <form method="post">
-            Enter your username: <input type="text" name="username"><br>
-            <input type="submit" value="Find My Account">
-        </form>
-    '''
+        return redirect(url_for('login'))
+
+    return render_template("forgot_password.html")
 
 
 #Main upload + PDF generation route
@@ -124,7 +128,7 @@ def upload_csv():
     if request.method == "POST":
         file = request.files["file"]
         if file and file.filename.endswith(".csv"):
-            csv_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            csv_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(csv_path)
 
             # Load CSV
@@ -167,9 +171,6 @@ def upload_csv():
                 
                 # Process image with debug output
                 headshot = None
-                image_name = row.get("Headshot", "").strip()
-                image_path = os.path.join(IMAGE_FOLDER, image_name)
-
                 print(f"📸 Looking for image at: {image_path}")
 
                 if os.path.exists(image_path):
@@ -184,7 +185,8 @@ def upload_csv():
                         print(f"❌ Error processing image {image_path}: {e}")
                 else:
                     print(f"❌ Image not found: {image_path}")
-                    pass
+                    # Use a placeholder or empty space if image is missing
+                    headshot = Spacer(1, 1*inch)
 
                 # Format text
                 info = f"<b>{name}</b><br/>{company}, {title_text}<br/><i>{additional}</i>"
@@ -225,5 +227,3 @@ def logout():
 #Run the app
 if __name__ == '__main__':
     app.run(debug=True)
-
-
