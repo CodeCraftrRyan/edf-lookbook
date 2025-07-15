@@ -1,18 +1,17 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash 
 from user_models import db, User  # type: ignore
 import os 
 import pandas as pd
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+from docx import Document
+from docx.shared import Inches, RGBColor 
+from docx.enum.table import WD_ALIGN_VERTICAL
 from PIL import Image as PILImage
 from datetime import datetime
 from flask_mail import Mail, Message 
+
+# Login and registration features are temporarily disabled for testing
 
 app = Flask(__name__, instance_relative_config=True)
 # Email configuration
@@ -31,9 +30,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 app.secret_key = 'dolefoundation'  
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login' 
+#login_manager = LoginManager()
+#login_manager.init_app(app)
+#login_manager.login_view = 'login' 
 
 # Folders 
 app.config['UPLOAD_FOLDER'] = "uploads"
@@ -45,28 +44,25 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(TEMP_IMAGE_FOLDER, exist_ok=True)
 
 #Flask-Login user loader
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+#@login_manager.user_loader
+#def load_user(user_id):
+#    return User.query.get(int(user_id))
 
 #Login route 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#   if request.method == 'POST':
+#         username = request.form.get('username')
+#         password = request.form.get('password')
+#         user = User.query.filter_by(username=username).first()
+#         if user and user.check_password(password):
+#             login_user(user)
+#             return redirect(url_for('upload_csv'))
+#         else:
+#             flash("Invalid username or password.")
+#     return render_template('login.html')
 
-        # ✅ Fetch from the database
-        user = User.query.filter_by(username=username).first()
-
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('upload_csv'))
-        else:
-            flash("Invalid username or password.")
-
-    return render_template('login.html')
-
+'''
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -99,7 +95,9 @@ def register():
         return redirect(url_for("login"))
 
     return render_template("register.html")
+'''
 
+'''
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -119,11 +117,11 @@ def forgot_password():
         return redirect(url_for('login'))
 
     return render_template("forgot_password.html")
-
+'''
 
 #Main upload + PDF generation route
 @app.route("/", methods=["GET", "POST"])
-@login_required
+#@login_required
 def upload_csv():
     if request.method == "POST":
         file = request.files["file"]
@@ -135,31 +133,12 @@ def upload_csv():
             df = pd.read_csv(csv_path)
             df.fillna("", inplace=True)
 
-            # Styles
-            styles = getSampleStyleSheet()
-            custom_title_color = colors.Color(28/255, 68/255, 108/255)
-            custom_border_color = colors.Color(203/255, 212/255, 217/255)
+            output_path = "output.docx"
+            doc = Document()
+            doc.add_heading("Elizabeth Dole Foundation Look-Book", 0)
 
-            title_style = ParagraphStyle("TitleStyle", parent=styles["Title"], fontName="Times-Roman", fontSize=20,
-                                         textColor=custom_title_color, alignment=1, spaceBefore=10, spaceAfter=10)
-            name_style = ParagraphStyle("NameStyle", parent=styles["BodyText"], fontName="Times-Roman", fontSize=11,
-                                        leading=18, spaceAfter=5)
-            desc_style = ParagraphStyle("DescStyle", parent=styles["BodyText"], fontName="Times-Roman", fontSize=10,
-                                        leading=14, spaceAfter=5)
+            from docx.shared import RGBColor
 
-            # Create PDF
-            output_path = "output.pdf"
-            doc = SimpleDocTemplate(output_path, pagesize=letter,
-                                    leftMargin=0.5 * inch, rightMargin=0.5 * inch,
-                                    topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-
-            elements = []
-
-            # Title Page
-            elements.append(Paragraph("Elizabeth Dole Foundation Look-Book", title_style))
-            elements.append(Spacer(1, 10))
-
-            # Loop through each row
             for index, row in df.iterrows():
                 name = row.get("Name", "")
                 title_text = row.get("Title", "")
@@ -168,61 +147,57 @@ def upload_csv():
                 description = row.get("Description", "")
                 image_name = row.get("Headshot", "").strip()
                 image_path = os.path.join(IMAGE_FOLDER, image_name)
-                
-                # Process image with debug output
-                headshot = None
-                print(f"📸 Looking for image at: {image_path}")
 
+                table = doc.add_table(rows=2, cols=4)
+                table.autofit = False
+                table.columns[0].width = Inches(1.0)
+                table.columns[1].width = Inches(5.5)
+
+                # Column 1: Image
+                img_cell = table.cell(0, 0)
+                img_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
                 if os.path.exists(image_path):
                     try:
-                        img = PILImage.open(image_path)
-                        img = img.resize((75, 75), resample=PILImage.LANCZOS)
-                        temp_path = os.path.join(TEMP_IMAGE_FOLDER, f"temp_{index}.jpg")
-                        img.save(temp_path, quality=95)
-                        headshot = RLImage(temp_path, width=1*inch, height=1*inch)
-                        print(f"✅ Image processed successfully: {temp_path}")
+                        img_para = img_cell.paragraphs[0]
+                        img_para.paragraph_format.space_after = 0
+                        run = img_para.add_run()
+                        run.add_picture(image_path, width=Inches(1.0))
                     except Exception as e:
-                        print(f"❌ Error processing image {image_path}: {e}")
+                        img_cell.text = "[Image error]"
                 else:
-                    print(f"❌ Image not found: {image_path}")
-                    # Use a placeholder or empty space if image is missing
-                    headshot = Spacer(1, 1*inch)
+                    img_cell.text = "[Image not found]"
 
-                # Format text
-                info = f"<b>{name}</b><br/>{company}, {title_text}<br/><i>{additional}</i>"
-                paragraph_name = Paragraph(info, name_style)
-                paragraph_desc = Paragraph(description, desc_style)
+                # Column 2: Text content
+                text_cell = table.cell(0, 1)
+                p = text_cell.paragraphs[0]
+                p.paragraph_format.space_before = 0
+                name_run = p.add_run(name + "\n")
+                name_run.bold = True
+                name_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue color
+                p.add_run(f"{company}, {title_text}\n")
+                if additional:
+                    p.add_run("\n" + additional).italic = True
 
-                data = [
-                    [headshot, paragraph_name],
-                    [paragraph_desc, ""]
-                ]
+                # Row 2: Description across all four columns
+                desc_cell = table.cell(1, 0)
+                desc_cell.merge(table.cell(1, 3))
+                desc_para = desc_cell.paragraphs[0]
+                desc_para.add_run("\n")  # Add more space between headshot and description
+                desc_para.add_run(description)
 
-                table = Table(data, colWidths=[90, 450])
-                table.setStyle(TableStyle([
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-                    ("BOX", (0, 0), (-1, -1), 2, custom_border_color),
-                    ("SPAN", (0, 1), (1, 1)),
-                ]))
+                doc.add_paragraph("\n")
 
-                elements.append(table)
-                elements.append(Spacer(1, 10))
-
-            doc.build(elements)
-
+            doc.save(output_path)
             return send_file(output_path, as_attachment=True)
 
     #GET request
     return render_template("upload.html")
 
-@app.route("/logout", methods=["GET"])
-@login_required
-def logout():
-    logout_user()
-    flash("You’ve been logged out.")
-    return redirect(url_for("login"))
+#@app.route("/logout", methods=["GET"]) removed for testing
+#@login_required temporarily removed for testing
+#    logout_user()
+#    flash("You’ve been logged out.")
+#    return redirect(url_for("login"))
 
 #Run the app
 if __name__ == '__main__':
