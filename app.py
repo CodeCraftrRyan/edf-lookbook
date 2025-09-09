@@ -10,6 +10,10 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from PIL import Image as PILImage
 from datetime import datetime
 from flask_mail import Mail, Message 
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from io import BytesIO
+import csv
 
 # Login and registration features are temporarily disabled for testing
 
@@ -118,6 +122,12 @@ def forgot_password():
 
     return render_template("forgot_password.html")
 '''
+# Utility function to set column width
+from docx.shared import Inches
+
+def set_column_width(table, column_idx, width_in_inches):
+    for cell in table.columns[column_idx].cells:
+        cell.width = Inches(width_in_inches)
 
 #Main upload + PDF generation route
 @app.route("/", methods=["GET", "POST"])
@@ -133,9 +143,12 @@ def upload_csv():
             df = pd.read_csv(csv_path)
             df.fillna("", inplace=True)
 
-            output_path = "output.docx"
+            output_path = "lookbook output.docx"
             doc = Document()
             doc.add_heading("Elizabeth Dole Foundation Look-Book", 0)
+            doc.add_paragraph("Generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            doc.add_page_break()
+            
 
             from docx.shared import RGBColor
 
@@ -147,11 +160,12 @@ def upload_csv():
                 description = row.get("Description", "")
                 image_name = row.get("Headshot", "").strip()
                 image_path = os.path.join(IMAGE_FOLDER, image_name)
-
-                table = doc.add_table(rows=2, cols=4)
-                table.autofit = False
-                table.columns[0].width = Inches(1.0)
-                table.columns[1].width = Inches(5.5)
+                table = doc.add_table(rows=2, cols=3)
+                
+                # Set column widths
+                set_column_width(table, 0, 1.5)  # First column 2 inches
+                set_column_width(table, 1, 3)  # Second column 3 inches
+                set_column_width(table, 2, 1)  # Third column 1 inch                   
 
                 # Column 1: Image
                 img_cell = table.cell(0, 0)
@@ -161,7 +175,7 @@ def upload_csv():
                         img_para = img_cell.paragraphs[0]
                         img_para.paragraph_format.space_after = 0
                         run = img_para.add_run()
-                        run.add_picture(image_path, width=Inches(1.0))
+                        run.add_picture(image_path, width=Inches(1.4))
                     except Exception as e:
                         img_cell.text = "[Image error]"
                 else:
@@ -169,22 +183,22 @@ def upload_csv():
 
                 # Column 2: Text content
                 text_cell = table.cell(0, 1)
-                p = text_cell.paragraphs[0]
-                p.paragraph_format.space_before = 0
-                name_run = p.add_run(name + "\n")
-                name_run.bold = True
-                name_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue color
-                p.add_run(f"{company}, {title_text}\n")
+                # Name (Heading 2) at the top, in its own paragraph
+                name_para = text_cell.paragraphs[0]
+                name_para.style = 'Heading 2'
+                name_para.add_run(name)
+                # Company, title, and additional info in the paragraph below name
+                info_para = text_cell.add_paragraph()
+                info_para.add_run(f"{company}, {title_text}\n")
                 if additional:
-                    p.add_run("\n" + additional).italic = True
+                    info_para.add_run("\n" + additional).italic = True
 
                 # Row 2: Description across all four columns
                 desc_cell = table.cell(1, 0)
-                desc_cell.merge(table.cell(1, 3))
+                desc_cell.merge(table.cell(1, 2))
                 desc_para = desc_cell.paragraphs[0]
                 desc_para.add_run("\n")  # Add more space between headshot and description
                 desc_para.add_run(description)
-
                 doc.add_paragraph("\n")
 
             doc.save(output_path)
@@ -198,6 +212,41 @@ def upload_csv():
 #    logout_user()
 #    flash("You’ve been logged out.")
 #    return redirect(url_for("login"))
+
+@app.route('/download-template')
+def download_template():
+    from io import StringIO
+    import csv
+
+    output = BytesIO()
+    writer = csv.writer(output)
+    
+    import io
+    text_stream = io.TextIOWrapper(output, encoding='utf-8')
+    writer = csv.writer(text_stream)
+
+    # Column headers
+    writer.writerow(["Name", "Title", "Company", "Additional", "Description", "Headshot"])
+
+    # Example row
+    writer.writerow([
+        "Jane Doe",
+        "Senior Advisor",
+        "Elizabeth Dole Foundation",
+        "Military Caregiver Advocate",
+        "Jane has dedicated over a decade to supporting caregivers across the country.",
+        "jane_doe.jpg"
+    ])
+
+    text_stream.flush()
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='LOOKBOOK_TEMPLATE.csv'
+    )
 
 #Run the app
 if __name__ == '__main__':
