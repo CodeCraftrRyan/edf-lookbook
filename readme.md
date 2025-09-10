@@ -21,16 +21,21 @@ Built with Flask and SQLAlchemy, the app supports secure staff login, user regis
 
 ## 📁 CSV Format Requirements
 
-Your CSV should include the following columns (headers in lowercase):
+Your CSV should include the following columns (exact headers):
 
-- `headshot` *(file name like `first_last1.jpg`)*
-- `name`
-- `company`
-- `title`
-- `additional`
-- `description`
+- `lookbookID` *(unique identifier for each entry, e.g., LB-0001)*
+- `Full Name`
+- `Primary Organization (Lookbook)`
+- `Primary Affiliation Role (Lookbook)`
+- `Bio/About Me`
 
-Images must be stored in `/static/images/` and should match the `headshot` file names.
+Images should be stored in `/static/images/` and their file names should match the values you provide in the image column (if used).
+
+### Example Row
+
+| lookbookID | Full Name  | Primary Organization (Lookbook) | Primary Affiliation Role (Lookbook) | Bio/About Me |
+|------------|------------|---------------------------------|-------------------------------------|--------------|
+| LB-0001    | Jane Doe   | Elizabeth Dole Foundation       | Senior Advisor                      | Jane has dedicated over a decade to supporting caregivers across the country. |
 
 ---
 

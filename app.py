@@ -5,7 +5,7 @@ from user_models import db, User  # type: ignore
 import os 
 import pandas as pd
 from docx import Document
-from docx.shared import Inches, RGBColor 
+from docx.shared import Inches, RGBColor, Pt 
 from docx.enum.table import WD_ALIGN_VERTICAL
 from PIL import Image as PILImage
 from datetime import datetime
@@ -129,6 +129,25 @@ def set_column_width(table, column_idx, width_in_inches):
     for cell in table.columns[column_idx].cells:
         cell.width = Inches(width_in_inches)
 
+def resolve_image_by_id(image_key):
+    """
+    Given an image base key (usually lookbookID), try common extensions in IMAGE_FOLDER.
+    Returns a full path if found, else empty string.
+    """
+    if not image_key:
+        return ""
+    base, ext = os.path.splitext(image_key)
+    # If an extension is already present, check directly
+    if ext:
+        candidate = os.path.join(IMAGE_FOLDER, image_key)
+        return candidate if os.path.exists(candidate) else ""
+    # Otherwise, try common extensions in priority order
+    for e in [".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"]:
+        candidate = os.path.join(IMAGE_FOLDER, image_key + e)
+        if os.path.exists(candidate):
+            return candidate
+    return ""
+
 #Main upload + PDF generation route
 @app.route("/", methods=["GET", "POST"])
 #@login_required
@@ -139,12 +158,53 @@ def upload_csv():
             csv_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(csv_path)
 
-            # Load CSV
-            df = pd.read_csv(csv_path)
+            # Load CSV with robust handling, including Salesforce "CSV Unicode (UTF-16)" exports
+            read_kwargs = dict(sep=None, engine="python")  # allow auto-detect of comma vs tab
+            try:
+                df = pd.read_csv(csv_path, encoding="utf-8-sig", **read_kwargs)
+            except UnicodeDecodeError:
+                # Try UTF-16 variants (Salesforce "CSV Unicode" often uses BE; pandas will auto-detect with BOM)
+                for enc in ("utf-16", "utf-16-be", "utf-16-le", "cp1252", "latin1"):
+                    try:
+                        df = pd.read_csv(csv_path, encoding=enc, **read_kwargs)
+                        break
+                    except UnicodeDecodeError:
+                        df = None
+                if df is None:
+                    # Final fallback without explicit encoding (let pandas guess)
+                    df = pd.read_csv(csv_path, **read_kwargs)
             df.fillna("", inplace=True)
+
+            # Normalize common Windows control chars to smart punctuation (if any slipped through)
+            def _normalize_text(val):
+                if not isinstance(val, str):
+                    return val
+                return (
+                    val.replace("\u0091", "\u2018")   # ‘
+                       .replace("\u0092", "\u2019")   # ’
+                       .replace("\u0093", "\u201C")   # “
+                       .replace("\u0094", "\u201D")   # ”
+                       .replace("\u0096", "\u2013")   # –
+                       .replace("\u0097", "\u2014")   # —
+                )
+            df = df.applymap(_normalize_text)
 
             output_path = "lookbook output.docx"
             doc = Document()
+            # Set global font to Times New Roman, 11pt
+            style = doc.styles['Normal']
+            font = style.font
+            font.name = 'Times New Roman'
+            font.size = Pt(11)
+            
+            # Add a logo on the title page if available
+            logo_path = os.path.join("static", "images", "logo.png")
+            if os.path.exists(logo_path):
+                try:
+                    doc.add_picture(logo_path, width=Inches(1.7))
+                except Exception as e:
+                    doc.add_paragraph("[Logo error]")
+            
             doc.add_heading("Elizabeth Dole Foundation Look-Book", 0)
             doc.add_paragraph("Generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             doc.add_page_break()
@@ -152,20 +212,35 @@ def upload_csv():
 
             from docx.shared import RGBColor
 
+            # Track image selection by lookbookID so repeated IDs reuse the same image
+            id_to_image = {}
+
             for index, row in df.iterrows():
-                name = row.get("Name", "")
-                title_text = row.get("Title", "")
-                company = row.get("Company", "")
-                additional = row.get("Additional", "")
-                description = row.get("Description", "")
-                image_name = row.get("Headshot", "").strip()
-                image_path = os.path.join(IMAGE_FOLDER, image_name)
-                table = doc.add_table(rows=2, cols=3)
+                # New canonical headers with graceful fallback to legacy names
+                name = (row.get("Full Name") or row.get("Name") or "").strip()
+                title_text = (row.get("Primary Affiliation Role (Lookbook)") or row.get("Title") or "").strip()
+                company = (row.get("Primary Organization (Lookbook)") or row.get("Company") or "").strip()
+                additional = (row.get("Additional") or "").strip()
+                # Track ID for cross-row consistency
+                lookbook_id = (row.get("lookbookID") or row.get("LookbookID") or "").strip()
+                # Long text: new header "Bio/About Me" or legacy "Description"/"Bio"
+                description = ((row.get("Bio/About Me") or row.get("Description") or row.get("Bio") or "")).strip()
+                # Images use the Lookbook ID as the filename base (e.g., LB-0001.jpg/.png)
+                image_key = lookbook_id
+                if lookbook_id:
+                    # Cache the image key for this ID so repeats stay consistent
+                    if lookbook_id not in id_to_image:
+                        id_to_image[lookbook_id] = image_key
+                    image_key = id_to_image[lookbook_id]
+                image_path = resolve_image_by_id(image_key)
                 
+                # Build header table (image + name/title/company)
+                table = doc.add_table(rows=1, cols=3)
+                table.autofit = False
                 # Set column widths
-                set_column_width(table, 0, 1.5)  # First column 2 inches
-                set_column_width(table, 1, 3)  # Second column 3 inches
-                set_column_width(table, 2, 1)  # Third column 1 inch                   
+                set_column_width(table, 0, 1.6)   # Image column
+                set_column_width(table, 1, 4.2)   # Text column (wider for long titles)
+                set_column_width(table, 2, 0.6)   # Spacer column
 
                 # Column 1: Image
                 img_cell = table.cell(0, 0)
@@ -175,31 +250,38 @@ def upload_csv():
                         img_para = img_cell.paragraphs[0]
                         img_para.paragraph_format.space_after = 0
                         run = img_para.add_run()
-                        run.add_picture(image_path, width=Inches(1.4))
+                        run.add_picture(image_path, width=Inches(1.7))
                     except Exception as e:
                         img_cell.text = "[Image error]"
                 else:
-                    img_cell.text = "[Image not found]"
+                    img_cell.text = f"[Image not found for ID: {lookbook_id}]"
 
-                # Column 2: Text content
+                # Column 2: Text content (name + role)
                 text_cell = table.cell(0, 1)
-                # Name (Heading 2) at the top, in its own paragraph
                 name_para = text_cell.paragraphs[0]
                 name_para.style = 'Heading 2'
                 name_para.add_run(name)
-                # Company, title, and additional info in the paragraph below name
-                info_para = text_cell.add_paragraph()
-                info_para.add_run(f"{company}, {title_text}\n")
-                if additional:
-                    info_para.add_run("\n" + additional).italic = True
 
-                # Row 2: Description across all four columns
-                desc_cell = table.cell(1, 0)
-                desc_cell.merge(table.cell(1, 2))
-                desc_para = desc_cell.paragraphs[0]
-                desc_para.add_run("\n")  # Add more space between headshot and description
-                desc_para.add_run(description)
-                doc.add_paragraph("\n")
+                info_para = text_cell.add_paragraph()
+                info_run = info_para.add_run(f"{company}, {title_text}")
+                info_para.add_run("\n")
+                if additional:
+                    add_run = info_para.add_run(additional)
+                    add_run.italic = True
+
+                # Add a full-width Bio section below the table to allow long text across pages
+                bio_title = doc.add_paragraph()
+                bio_title_run = bio_title.add_run("Bio")
+                bio_title_run.bold = True
+                bio_title.paragraph_format.space_before = Pt(6)
+                bio_title.paragraph_format.space_after = Pt(2)
+
+                bio_para = doc.add_paragraph()
+                bio_para.paragraph_format.space_after = Pt(12)
+                bio_para.paragraph_format.line_spacing = 1.15
+                bio_run = bio_para.add_run(description)
+
+                doc.add_paragraph("")  # spacer between entries
 
             doc.save(output_path)
             return send_file(output_path, as_attachment=True)
@@ -225,17 +307,16 @@ def download_template():
     text_stream = io.TextIOWrapper(output, encoding='utf-8')
     writer = csv.writer(text_stream)
 
-    # Column headers
-    writer.writerow(["Name", "Title", "Company", "Additional", "Description", "Headshot"])
+    # New canonical headers used by the Lookbook
+    writer.writerow(["lookbookID", "Full Name", "Primary Organization (Lookbook)", "Primary Affiliation Role (Lookbook)", "Bio/About Me"])
 
-    # Example row
+    # Example row using the new schema
     writer.writerow([
+        "LB-0001",
         "Jane Doe",
-        "Senior Advisor",
         "Elizabeth Dole Foundation",
-        "Military Caregiver Advocate",
-        "Jane has dedicated over a decade to supporting caregivers across the country.",
-        "jane_doe.jpg"
+        "Senior Advisor",
+        "Jane has dedicated over a decade to supporting caregivers across the country."
     ])
 
     text_stream.flush()
