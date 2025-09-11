@@ -7,7 +7,7 @@ import pandas as pd
 from docx import Document
 from docx.shared import Inches, RGBColor, Pt 
 from docx.enum.table import WD_ALIGN_VERTICAL
-from PIL import Image as PILImage
+from PIL import Image as PILImage, UnidentifiedImageError
 from datetime import datetime
 from flask_mail import Mail, Message 
 from docx.oxml import OxmlElement
@@ -148,6 +148,37 @@ def resolve_image_by_id(image_key):
             return candidate
     return ""
 
+# python-docx supported raster formats are typically JPEG, PNG, GIF, BMP, TIFF
+SUPPORTED_DOCX_FORMATS = {"JPEG", "JPG", "PNG", "GIF", "BMP", "TIFF"}
+
+def ensure_docx_compatible(image_path: str) -> str:
+    """
+    Ensures the image at image_path is in a format supported by python-docx.
+    If it's unsupported (e.g., WEBP/HEIC), convert to JPEG into TEMP_IMAGE_FOLDER
+    and return the new path. On success, returns a path that python-docx can insert.
+    Raises UnidentifiedImageError if the source is not a readable image.
+    """
+    # Quick existence check
+    if not os.path.exists(image_path):
+        return image_path
+
+    # Verify & detect format
+    with PILImage.open(image_path) as im:
+        im.verify()
+    with PILImage.open(image_path) as im2:
+        fmt = (im2.format or "").upper()
+        # If supported, return original path
+        if fmt in SUPPORTED_DOCX_FORMATS:
+            return image_path
+        # Otherwise, convert to JPEG
+        base = os.path.splitext(os.path.basename(image_path))[0]
+        out_path = os.path.join(TEMP_IMAGE_FOLDER, base + ".jpg")
+        # Re-open for conversion to ensure full image data
+        im3 = im2.convert("RGB")
+        os.makedirs(TEMP_IMAGE_FOLDER, exist_ok=True)
+        im3.save(out_path, "JPEG", quality=92, optimize=True)
+        return out_path
+
 #Main upload + PDF generation route
 @app.route("/", methods=["GET", "POST"])
 #@login_required
@@ -247,12 +278,23 @@ def upload_csv():
                 img_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
                 if os.path.exists(image_path):
                     try:
+                        # Ensure image is readable and docx-compatible (auto-convert if needed)
+                        safe_path = ensure_docx_compatible(image_path)
                         img_para = img_cell.paragraphs[0]
                         img_para.paragraph_format.space_after = 0
                         run = img_para.add_run()
-                        run.add_picture(image_path, width=Inches(1.7))
+                        run.add_picture(safe_path, width=Inches(1.7))
+                    except UnidentifiedImageError:
+                        img_cell.text = f"[Invalid image format (unreadable): {os.path.basename(image_path)}]"
                     except Exception as e:
-                        img_cell.text = "[Image error]"
+                        # Try to report the source format for easier debugging
+                        try:
+                            with PILImage.open(image_path) as im_dbg:
+                                fmt_dbg = im_dbg.format
+                        except Exception:
+                            fmt_dbg = "unknown"
+                        msg = str(e) or "unknown error"
+                        img_cell.text = f"[Image error: {msg}; src fmt={fmt_dbg}]"
                 else:
                     img_cell.text = f"[Image not found for ID: {lookbook_id}]"
 
