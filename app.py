@@ -263,11 +263,9 @@ def upload_csv():
                 name_para.add_run(name)
 
                 info_para = text_cell.add_paragraph()
-                info_run = info_para.add_run(f"{company}, {title_text}")
+                info_run = info_para.add_run(f"{title_text}, {company}")
                 info_para.add_run("\n")
-                if additional:
-                    add_run = info_para.add_run(additional)
-                    add_run.italic = True
+
 
                 # Add a full-width Bio section below the table to allow long text across pages
                 bio_title = doc.add_paragraph()
