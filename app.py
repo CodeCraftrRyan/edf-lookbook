@@ -308,14 +308,14 @@ def download_template():
     writer = csv.writer(text_stream)
 
     # New canonical headers used by the Lookbook
-    writer.writerow(["lookbookID", "Full Name", "Primary Organization (Lookbook)", "Primary Affiliation Role (Lookbook)", "Bio/About Me"])
+    writer.writerow(["lookbookID", "Full Name", "Primary Affiliation Role (Lookbook)", "Primary Organization (Lookbook)", "Bio/About Me"])
 
     # Example row using the new schema
     writer.writerow([
         "LB-0001",
         "Jane Doe",
-        "Elizabeth Dole Foundation",
         "Senior Advisor",
+        "Elizabeth Dole Foundation",
         "Jane has dedicated over a decade to supporting caregivers across the country."
     ])
 
